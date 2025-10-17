@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#13151a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>AR Demo</title>
+  <style>
+    :root {
+      --bg-primary: #13151a;
+      --bg-secondary: #1e2127;
+      --accent: #00d4ff;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --border: rgba(255, 255, 255, 0.1);
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --radius: 12px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      line-height: 1.15;
+      -webkit-text-size-adjust: 100%;
+      height: 100dvh;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      height: 100dvh;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+      z-index: 10;
+      transition: var(--transition);
+    }
+
+    .screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .branding {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .branding h1 {
+      font-size: clamp(1.5rem, 5vw, 2.5rem);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--accent), #00aaff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .branding p {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      min-height: 3rem;
+      touch-action: manipulation;
+      appearance: none;
+      -webkit-appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: auto;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #00aaff);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary:hover,
+    .btn-primary:active {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(0, 212, 255, 0.4);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+
+    .btn-outline:hover {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.icon-only {
+      padding: 0.75rem;
+      min-width: 3rem;
+      min-height: 3rem;
+    }
+
+    .big {
+      font-size: 1.2rem;
+      padding: 1.25rem 3rem;
+    }
+
+    .tip {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 0 1rem;
+    }
+
+    #camera-screen {
+      background: black;
+      justify-content: flex-start;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    #camera-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    #camera {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+
+    #target-bg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 40vw; /* 修改：限制最大寬度為視窗寬度的 40%，讓圖片縮小 */
+      max-height: 40vh; /* 修改：限制最大高度為視窗高度的 40% */
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      opacity: 0.2;
+      z-index: 2;
+      display: none;
+      animation: pulse 2s infinite;
+      transition: opacity 1s ease-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 0.3; }
+    }
+
+    #overlay-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #overlay-video {
+      position: absolute;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      pointer-events: auto;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) translateY(100%) scale(0.8);
+      transition: transform 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    #overlay-video.hidden {
+      display: none;
+    }
+
+    #scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2s linear infinite;
+      opacity: 0.5;
+      z-index: 5;
+    }
+
+    @keyframes scan {
+      0% { top: 0; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .topbar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .bottombar {
+      position: relative;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .bar {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .status-tip {
+      position: absolute;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      z-index: 25;
+    }
+
+    .scan-tip {
+      position: absolute;
+      bottom: 8rem;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 1rem 2rem;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      color: var(--text-primary);
+      text-align: center;
+      z-index: 25;
+      border: 1px solid var(--accent);
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .scan-tip.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .scan-tip.hide {
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    canvas.hidden {
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+    }
+
+    #permission-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100dvh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      pointer-events: auto;
+    }
+
+    #permission-dialog.hidden {
+      display: none;
+    }
+
+    .dialog-content {
+      background: var(--bg-secondary);
+      padding: 2rem;
+      border-radius: var(--radius);
+      text-align: center;
+      max-width: 90%;
+      box-shadow: var(--shadow);
+      pointer-events: auto;
+    }
+
+    .dialog-content h2 {
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .dialog-content p {
+      margin-bottom: 1.5rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 480px) {
+      .bar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+      }
+
+      .btn {
+        flex: 1;
+        min-width: auto;
+        max-width: none;
+        justify-content: center;
+      }
+
+      .btn.icon-only {
+        flex: 0 0 auto;
+      }
+
+      /* 修改：手機上讓啟動畫面按鈕位置更低 */
+      .screen {
+        justify-content: flex-end;
+        padding-bottom: 4rem;
+      }
+
+      .branding {
+        margin-bottom: 1rem; /* 減少標題與按鈕間距 */
+      }
+    }
+
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100dvh;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top: 4px solid var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #error-tip {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 0, 0, 0.9);
+      color: white;
+      padding: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+      z-index: 100;
+      max-width: 90%;
+    }
+
+    /* 確保 Three.js canvas 覆蓋 video */
+    #camera-container canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 3 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div class="spinner"></div>
+    </div>
+
+    <section id="start-screen" class="screen hidden">
+      <div class="branding">
+        <h1>AR 體驗 Demo</h1>
+        <p>點擊下方按鈕開啟後置鏡頭</p>
+      </div>
+      <button id="btn-start" class="btn btn-primary big">
+        <span class="icon">📷</span>
+        啟動相機
+      </button>
+      <div class="tip">不會上傳影像，僅在本機處理</div>
+    </section>
+
+    <div id="permission-dialog" class="hidden">
+      <div class="dialog-content">
+        <h2>需要相機權限</h2>
+        <p>為了啟動 AR 體驗，我們需要存取您的後置相機。您的隱私將受到保護，所有處理均在本裝置進行。</p>
+        <button id="btn-grant" class="btn btn-primary">授予權限</button>
+        <button id="btn-deny" class="btn btn-outline">稍後</button>
+      </div>
+    </div>
+
+    <section id="camera-screen" class="screen hidden">
+      <div class="topbar">
+        <div class="spacer"></div>
+      </div>
+
+      <div id="camera-container">
+        <video id="camera" playsinline autoplay muted></video>
+        <img id="target-bg" src="./assets/target-image.jpg" alt="目標圖片" />
+
+        <div id="overlay-container" aria-hidden="true" class="hidden">
+          <video id="overlay-video" loop muted playsinline class="hidden">
+            <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZm... (佔位：替換為實際 mp4 base64 或 URL)" type="video/mp4" />
+          </video>
+        </div>
+
+        <div id="scan-line"></div>
+      </div>
+
+      <div id="status-tip" class="status-tip hidden">
+        <span class="dot"></span>
+        <span id="status-text">準備中...</span>
+      </div>
+
+      <div id="scan-tip" class="scan-tip hidden">
+        <p>請將特定圖片（目標影像）置於鏡頭前方，保持穩定並有良好光線。掃描中...</p>
+      </div>
+
+      <div class="bottombar">
+        <div class="bar">
+          <button id="btn-capture" class="btn btn-primary">
+            <span class="icon">⬇️</span> 截圖保存
+          </button>
+          <button id="btn-torch" class="btn icon-only" title="手電筒">🔦</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="error-tip" class="hidden">
+      <p id="error-text">載入失敗，請檢查網路並重試。</p>
+      <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 1rem;">重試</button>
+    </div>
+  </div>
+
+  <canvas id="proc-canvas" class="hidden"></canvas>
+  <canvas id="capture-canvas" class="hidden"></canvas>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { MindARThree } from 'mindar-image-three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    class ARApp {
+      constructor() {
+        this.startScreen = document.getElementById('start-screen');
+        this.cameraScreen = document.getElementById('camera-screen');
+        this.permissionDialog = document.getElementById('permission-dialog');
+        this.loading = document.getElementById('loading');
+        this.errorTip = document.getElementById('error-tip');
+        this.errorText = document.getElementById('error-text');
+        this.camera = document.getElementById('camera');
+        this.cameraContainer = document.getElementById('camera-container');
+        this.targetBg = document.getElementById('target-bg');
+        this.overlayContainer = document.getElementById('overlay-container');
+        this.overlayVideo = document.getElementById('overlay-video');
+        this.statusTip = document.getElementById('status-tip');
+        this.statusText = document.getElementById('status-text');
+        this.scanTip = document.getElementById('scan-tip');
+        this.procCanvas = document.getElementById('proc-canvas');
+        this.captureCanvas = document.getElementById('capture-canvas');
+        this.btnStart = document.getElementById('btn-start');
+        this.btnGrant = document.getElementById('btn-grant');
+        this.btnDeny = document.getElementById('btn-deny');
+        this.btnCapture = document.getElementById('btn-capture');
+        this.btnTorch = document.getElementById('btn-torch');
+        this.scanLine = document.getElementById('scan-line');
+
+        this.trackerImageUrl = './assets/my-target.mind';
+        this.targetImageUrl = './assets/target-image.jpg';
+        this.modelUrl = './assets/my-model.glb';
+        this.overlayVideoSrc = this.overlayVideo.querySelector('source').src;
+
+        this.startMindAR = null;
+        this.isTorchOn = false;
+        this.scene = null;
+        this.renderer = null;
+        this.camera3D = null;
+        this.anchor = null;
+        this.modelGroup = null;
+        this.controls = null;
+        this.testSphere = null;
+        this.mixer = null;
+        this.clock = new THREE.Clock();
+        this.popStartTime = 0;
+        this.isTargetDetected = false;
+        this.modelFadeInProgress = 0;
+        this.targetBgFadeOutProgress = 0;
+        this.fadeInDuration = 1000; // ms
+        this.targetBgFadeDuration = 1000; // ms
+        this.lastTime = 0;
+
+        this.hideLoading();
+        setTimeout(() => this.hideLoading(), 5000);
+
+        this.initEventListeners();
+      }
+
+      initEventListeners() {
+        this.btnStart.addEventListener('click', () => this.requestPermissions());
+        this.btnGrant.addEventListener('click', () => this.initCamera());
+        this.btnDeny.addEventListener('click', () => this.showStartScreen());
+        this.btnCapture.addEventListener('click', () => this.captureScreenshot());
+        this.btnTorch.addEventListener('click', () => this.toggleTorch());
+
+        this.camera.addEventListener('error', (e) => {
+          console.error('Camera error:', e);
+          this.updateStatus('相機錯誤，請重試', 'error');
+          this.showError('相機初始化失敗');
+        });
+
+        this.camera.addEventListener('loadedmetadata', () => {
+          console.log('Video metadata loaded, dimensions:', this.camera.videoWidth, 'x', this.camera.videoHeight);
+        });
+        this.camera.addEventListener('play', () => {
+          console.log('Video started playing');
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && this.cameraScreen.classList.contains('hidden')) {
+            this.requestPermissions();
+          }
+        });
+
+        // 監聽 resize 以更新 AR
+        window.addEventListener('resize', () => {
+          this.handleResize();
+        });
+      }
+
+      hideLoading() {
+        this.loading.classList.add('hidden');
+        this.startScreen.classList.remove('hidden');
+      }
+
+      showError(message) {
+        this.errorText.textContent = message;
+        this.errorTip.classList.remove('hidden');
+        this.loading.classList.add('hidden');
+      }
+
+      async requestPermissions() {
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+          this.showError('請使用 HTTPS 部署。');
+          return;
+        }
+
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(d => d.kind === 'videoinput');
+          if (videoDevices.length === 0) throw new Error('無可用相機');
+
+          this.showPermissionDialog();
+        } catch (err) {
+          console.error('權限錯誤:', err);
+          this.showPermissionDialog('無法存取相機，請檢查設定。');
+        }
+      }
+
+      showPermissionDialog(message = '') {
+        if (message) {
+          document.querySelector('#permission-dialog .dialog-content p').textContent = message;
+        }
+        this.permissionDialog.classList.remove('hidden');
+        this.startScreen.classList.add('hidden');
+      }
+
+      showStartScreen() {
+        this.startScreen.classList.remove('hidden');
+        this.permissionDialog.classList.add('hidden');
+        this.cameraScreen.classList.add('hidden');
+        this.errorTip.classList.add('hidden');
+      }
+
+      async initCamera() {
+        try {
+          this.updateStatus('初始化相機...');
+          let constraints = { 
+            video: { facingMode: 'environment' }, 
+            audio: false 
+          };
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+          } catch {
+            constraints = { video: true };
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+          }
+
+          this.camera.srcObject = stream;
+          this.camera.muted = true;
+          await this.camera.play();
+
+          this.permissionDialog.classList.add('hidden');
+          this.cameraScreen.classList.remove('hidden');
+          this.startScreen.classList.add('hidden');
+
+          this.scanTip.classList.remove('hidden');
+          setTimeout(() => this.scanTip.classList.add('show'), 100);
+          this.targetBg.style.display = 'block';
+          this.targetBg.src = this.targetImageUrl;
+
+          try {
+            this.startMindAR = await this.initMindAR();
+            this.updateStatus('掃描特定圖片以顯示 3D 模型...（檢查綠色小球）');
+            this.scanLine.style.display = 'block';
+          } catch (mindarErr) {
+            console.error('MindAR 初始化失敗:', mindarErr);
+            this.updateStatus('AR 載入失敗，但相機已啟動。請檢查 .mind 檔案。', 'error');
+          }
+
+        } catch (err) {
+          console.error('初始化錯誤:', err);
+          this.updateStatus('初始化失敗，請重試', 'error');
+          this.showStartScreen();
+          this.showError(err.message || '未知錯誤');
+        }
+      }
+
+      async initMindAR() {
+        const start = new MindARThree({
+          container: this.cameraContainer,
+          imageTargetSrc: this.trackerImageUrl,
+          interpolationFactor: 0.03,
+          maxTrackLost: 5,
+          uiLoading: false,
+          uiScanning: '#status-tip',
+          filterMinCF: 0.1,
+          filterBeta: 0.01
+        });
+
+        const { renderer, scene, camera: arCamera } = start;
+        this.renderer = renderer;
+        this.scene = scene;
+        this.camera3D = arCamera;
+
+        // 添加燈光以避免模型全黑
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 環境光，提供均勻照明
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // 方向光，模擬陽光
+        directionalLight.position.set(1, 1, 1); // 位置調整以照亮模型
+        directionalLight.castShadow = true; // 可選：啟用陰影
+        scene.add(directionalLight);
+
+        renderer.powerPreference = 'high-performance';
+        renderer.antialias = true;
+        renderer.setClearColor(0x000000, 0);
+        renderer.setPixelRatio(window.devicePixelRatio * 0.8);
+
+        this.anchor = start.addAnchor(0);
+        const group = new THREE.Group();
+        this.anchor.group.add(group);
+
+        const testGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+        const testMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        this.testSphere = new THREE.Mesh(testGeometry, testMaterial);
+        this.testSphere.position.set(0, 0, -0.5);
+        scene.add(this.testSphere);
+        this.testSphere.visible = true;
+
+        this.modelGroup = new THREE.Group();
+        group.add(this.modelGroup);
+        this.modelGroup.visible = false;
+        this.modelGroup.scale.set(0.01, 0.01, 0.01); // 初始縮小用於 fade in
+
+        // 為模型群組的所有子元素添加透明度支持
+        this.modelGroup.traverse((child) => {
+          if (child.isMesh) {
+            child.material.transparent = true;
+            child.material.opacity = 0;
+          }
+        });
+
+        this.controls = new OrbitControls(this.camera3D, renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.enablePan = false;
+        this.controls.enableZoom = false;
+        this.controls.target.set(0, 0, 0);
+        this.controls.enabled = false;
+
+        const loader = new GLTFLoader();
+        loader.load(
+          this.modelUrl,
+          (gltf) => {
+            console.log('3D 模型載入成功！');
+            const model = gltf.scene;
+            this.modelGroup.add(model);
+
+            // 確保所有材料支持透明度
+            model.traverse((child) => {
+              if (child.isMesh) {
+                child.material.transparent = true;
+                child.material.opacity = 0;
+                if (child.material.map) {
+                  this.renderer.initTexture(child.material.map);
+                }
+              }
+            });
+
+            model.scale.set(0.5, 0.5, 0.5);
+            model.position.set(0, 0, 0);
+            model.rotation.set(0, Math.PI, 0);
+
+            if (gltf.animations && gltf.animations.length > 0) {
+              this.mixer = new THREE.AnimationMixer(model);
+              const action = this.mixer.clipAction(gltf.animations[0]);
+              action.play();
+              console.log('模型動畫開始播放');
+            }
+
+            this.updateStatus('3D 模型已載入，可拖拉轉動（偵測後）');
+          },
+          (progress) => {
+            console.log('模型載入進度:', (progress.loaded / progress.total * 100) + '%');
+          },
+          (error) => {
+            console.error('載入 3D 模型失敗:', error);
+            this.updateStatus('模型載入失敗，請檢查檔案路徑', 'error');
+            const fallbackGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const fallbackMaterial = new THREE.MeshBasicMaterial({ 
+              color: 0xff0000, 
+              transparent: true, 
+              opacity: 0 
+            });
+            const fallbackCube = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+            this.modelGroup.add(fallbackCube);
+          }
+        );
+
+        group.position.set(0, 0, 0.1);
+
+        console.log('MindAR 初始化完成，測試綠球應立即顯示');
+
+        renderer.setAnimationLoop((time) => {
+          const delta = this.clock.getDelta();
+          this.lastTime = time;
+
+          if (this.mixer) {
+            this.mixer.update(delta);
+          }
+
+          if (this.anchor.visible) {
+            console.log('偵測成功：顯示 3D 模型');
+            if (!this.isTargetDetected) {
+              this.isTargetDetected = true;
+              this.scanTip.classList.add('hide');
+              setTimeout(() => this.scanTip.classList.add('hidden'), 500);
+              // 開始 target-bg 漸變消失
+              this.targetBgFadeOutProgress = 0;
+              this.targetBg.style.opacity = '0.2';
+            }
+
+            this.overlayContainer.classList.remove('hidden');
+            this.overlayVideo.style.transform = 'translate(-50%, -50%) translateY(0) scale(1)';
+            
+            this.modelGroup.visible = true;
+            this.modelGroup.rotation.y += 0.5 * delta;
+            
+            this.controls.enabled = true;
+
+            // 更新 fade out for target-bg
+            if (this.targetBgFadeOutProgress < 1) {
+              this.targetBgFadeOutProgress += delta / (this.targetBgFadeDuration / 1000);
+              this.targetBgFadeOutProgress = Math.min(this.targetBgFadeOutProgress, 1);
+              this.targetBg.style.opacity = 0.2 * (1 - this.targetBgFadeOutProgress);
+              if (this.targetBgFadeOutProgress >= 1) {
+                this.targetBg.style.display = 'none';
+              }
+            }
+
+            // 更新 fade in for model
+            if (this.modelFadeInProgress < 1) {
+              this.modelFadeInProgress += delta / (this.fadeInDuration / 1000);
+              this.modelFadeInProgress = Math.min(this.modelFadeInProgress, 1);
+              const scale = 0.01 + (0.5 - 0.01) * this.modelFadeInProgress;
+              this.modelGroup.scale.set(scale, scale, scale);
+              this.modelGroup.traverse((child) => {
+                if (child.isMesh) {
+                  child.material.opacity = this.modelFadeInProgress;
+                }
+              });
+            }
+
+            this.updateStatus('目標找到！拖拉轉動模型（+綠色測試球）');
+            this.popStartTime = 0;  
+          } else {
+            console.log('未偵測：隱藏 3D 模型');
+            if (this.isTargetDetected) {
+              this.isTargetDetected = false;
+              this.scanTip.classList.remove('hidden', 'hide');
+              setTimeout(() => this.scanTip.classList.add('show'), 100);
+              // 重置 target-bg
+              this.targetBg.style.display = 'block';
+              this.targetBg.style.opacity = '0.2';
+              this.targetBgFadeOutProgress = 0;
+            }
+
+            this.overlayContainer.classList.add('hidden');
+            this.overlayVideo.style.transform = 'translate(-50%, -50%) translateY(100%) scale(0.8)';
+            
+            this.modelGroup.visible = false;
+            this.modelGroup.rotation.set(0, 0, 0);
+            this.modelFadeInProgress = 0;
+            this.modelGroup.scale.set(0.01, 0.01, 0.01);
+            this.modelGroup.traverse((child) => {
+              if (child.isMesh) {
+                child.material.opacity = 0;
+              }
+            });
+            
+            this.controls.enabled = false;
+
+            this.popStartTime = 0;
+            this.updateStatus('尋找特定圖片...（綠色小球應一直顯示）');
+          }
+
+          if (this.controls.enabled) {
+            this.controls.update();
+          }
+
+          this.testSphere.rotation.y += 0.5 * delta;
+
+          renderer.render(scene, this.camera3D);
+        });
+
+        await start.start({ inputSrc: this.camera });
+        return start;
+      }
+
+      async toggleTorch() {
+        try {
+          const track = this.camera.srcObject.getVideoTracks()[0];
+          if (!track) return;
+          await track.applyConstraints({ advanced: [{ torch: !this.isTorchOn }] });
+          this.isTorchOn = !this.isTorchOn;
+          this.btnTorch.style.opacity = this.isTorchOn ? '0.7' : '1';
+        } catch (e) {
+          console.warn('手電筒不支持:', e);
+        }
+      }
+
+      captureScreenshot() {
+        const videoWidth = this.camera.videoWidth;
+        const videoHeight = this.camera.videoHeight;
+        if (!videoWidth || !videoHeight) {
+          this.updateStatus('相機未準備好，請稍後重試', 'error');
+          return;
+        }
+
+        const ctx = this.captureCanvas.getContext('2d');
+        this.captureCanvas.width = videoWidth;
+        this.captureCanvas.height = videoHeight;
+
+        // 繪製相機視頻
+        ctx.drawImage(this.camera, 0, 0, videoWidth, videoHeight);
+
+        // 如果 AR 已偵測，強制渲染一幀並繪製 Three.js canvas
+        if (this.renderer && this.isTargetDetected) {
+          // 暫停動畫循環，渲染一幀
+          const originalLoop = this.renderer.info.render.frame;
+          this.renderer.render(this.scene, this.camera3D);
+          const threeCanvas = this.renderer.domElement;
+          if (threeCanvas && threeCanvas.width > 0 && threeCanvas.height > 0) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(threeCanvas, 0, 0, videoWidth, videoHeight);
+          }
+        }
+
+        // 繪製 overlay video（如果可見）
+        if (!this.overlayContainer.classList.contains('hidden') && !this.overlayVideo.classList.contains('hidden') && this.overlayVideo.videoWidth > 0) {
+          const containerRect = this.cameraContainer.getBoundingClientRect();
+          const videoRect = this.overlayVideo.getBoundingClientRect();
+          const x = ((videoRect.left - containerRect.left) / containerRect.width) * videoWidth;
+          const y = ((videoRect.top - containerRect.top) / containerRect.height) * videoHeight;
+          const w = (videoRect.width / containerRect.width) * videoWidth;
+          const h = (videoRect.height / containerRect.height) * videoHeight;
+          ctx.drawImage(this.overlayVideo, x, y, w, h);
+        }
+
+        // 繪製 target-bg 如果可見
+        if (this.targetBg.style.display !== 'none' && this.targetBg.complete) {
+          const containerRect = this.cameraContainer.getBoundingClientRect();
+          const bgRect = this.targetBg.getBoundingClientRect();
+          const x = ((bgRect.left - containerRect.left) / containerRect.width) * videoWidth;
+          const y = ((bgRect.top - containerRect.top) / containerRect.height) * videoHeight;
+          const w = (bgRect.width / containerRect.width) * videoWidth;
+          const h = (bgRect.height / containerRect.height) * videoHeight;
+          ctx.globalAlpha = parseFloat(this.targetBg.style.opacity) || 0.2;
+          ctx.drawImage(this.targetBg, x, y, w, h);
+          ctx.globalAlpha = 1;
+        }
+
+        this.captureCanvas.toBlob((blob) => {
+          const filename = `ar-screenshot-${Date.now()}.png`;
+          const file = new File([blob], filename, { type: 'image/png' });
+
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              title: 'AR 截圖',
+              text: '來自 AR Overlay 的酷炫截圖！',
+              files: [file]
+            }).then(() => {
+              console.log('分享成功');
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+              this.updateStatus(isIOS ? '已分享！在選單選擇「照片」存相簿' : '截圖已分享，可存到相簿！');
+            }).catch((err) => {
+              console.warn('分享失敗，回退下載:', err);
+              this.downloadFallback(blob, filename);
+            });
+          } else {
+            this.downloadFallback(blob, filename);
+          }
+        }, 'image/png', 0.95);
+      }
+
+      downloadFallback(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.updateStatus('截圖已下載！');
+      }
+
+      updateStatus(text, type = 'info') {
+        this.statusText.textContent = text;
+        this.statusTip.classList.remove('hidden');
+        this.statusTip.style.background = type === 'error' ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+        setTimeout(() => this.statusTip.classList.add('hidden'), 3000);
+      }
+
+      handleResize() {
+        if (this.startMindAR) {
+          this.startMindAR.resize();
+        }
+      }
+    }
+
+    window.addEventListener('load', () => {
+      try {
+        window.arApp = new ARApp();
+        window.addEventListener('resize', () => window.arApp?.handleResize());
+      } catch (e) {
+        console.error('App 初始化錯誤:', e);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error-tip').classList.remove('hidden');
+      }
+    });
+
+    window.addEventListener('error', (e) => {
+      console.error('全域錯誤:', e.error);
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('error-text').textContent = '發生錯誤，請重新載入。';
+      document.getElementById('error-tip').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
